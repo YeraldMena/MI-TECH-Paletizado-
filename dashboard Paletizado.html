@@ -690,8 +690,14 @@
 
                 <!-- Gráfico Línea Últimos 7 Días (Mitad Izquierda) -->
                 <div class="panel" style="display: flex; flex-direction: column;">
-                    <div class="panel-header">
+                    <div class="panel-header" style="align-items: center; justify-content: space-between;">
                         <h2 class="panel-title">Producción Diaria (Últimos 7 Días de Actividad)</h2>
+                        <select id="lineChartTurnoFilter" onchange="window.filterLineChartByTurno()"
+                            style="background: var(--bg-dark); color: var(--text-main); border: 1px solid var(--border-color); padding: 0.25rem 0.5rem; border-radius: 0.5rem; font-size: 0.8rem; cursor: pointer; outline: none;">
+                            <option value="Completo">Completo</option>
+                            <option value="Día">Turno Día</option>
+                            <option value="Noche">Turno Noche</option>
+                        </select>
                     </div>
                     <div class="chart-area" style="height: 280px; flex: 1;">
                         <canvas id="lineChart"></canvas>
@@ -786,6 +792,7 @@
         let flatpickrInstance = null; // Instancia global de calendario
         let allSheetData = [];      // Guardamos en memoria los datos puros para filtrar
         let availableDates = [];    // Todas las fechas extraíbles
+        let currentLineChartTurno = 'Completo'; // Filtro predeterminado para gráfico de 7 días
 
         // Función para cambiar de color si todos los días de ese mes están seleccionados
         window.syncMonthPills = function () {
@@ -868,6 +875,62 @@
         window.hideBarDetails = function () {
             document.getElementById('barChartDetailContainer').style.display = 'none';
             document.getElementById('barChartContainer').style.display = 'flex';
+        };
+
+        window.filterLineChartByTurno = function () {
+            const select = document.getElementById('lineChartTurnoFilter');
+            if (select) {
+                currentLineChartTurno = select.value;
+                window.renderLineChart();
+            }
+        };
+
+        window.renderLineChart = function () {
+            if (!myLineChart) return;
+
+            let dailyCounts = {};
+
+            // Iteramos sobre todos los datos y contamos basados en el filtro actual de Turno
+            allSheetData.forEach(row => {
+                let tKey = row.turno.toLowerCase();
+
+                let includeRow = false;
+                if (currentLineChartTurno === 'Completo') {
+                    includeRow = true;
+                } else if (currentLineChartTurno === 'Día' && (tKey.includes("día") || tKey.includes("day"))) {
+                    includeRow = true;
+                } else if (currentLineChartTurno === 'Noche' && (tKey.includes("noche") || tKey.includes("night"))) {
+                    includeRow = true;
+                }
+
+                if (includeRow) {
+                    if (dailyCounts[row.fecha]) {
+                        dailyCounts[row.fecha]++;
+                    } else {
+                        dailyCounts[row.fecha] = 1;
+                    }
+                }
+            });
+
+            // Ordenar fechas cronológicamente
+            // availableDates contiene los valores del date picker, que extrajimos previamente como fechas unicas
+            let chronologicDates = Array.from(availableDates).sort((a, b) => new Date(a) - new Date(b));
+
+            // Tomar las últimas 7
+            let last7 = chronologicDates.slice(-7);
+
+            // Mapear la cuenta de pallets para cada uno de esos 7 días
+            let last7Data = last7.map(d => dailyCounts[d] || 0);
+
+            // Embellecer formato de fecha para la etiqueta (ej: 'Feb 13')
+            let prettyLabels = last7.map(d => {
+                let dt = new Date(d);
+                return dt.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+            });
+
+            myLineChart.data.labels = prettyLabels;
+            myLineChart.data.datasets[0].data = last7Data;
+            myLineChart.update();
         };
 
         // Función para inyectar un mes completo al Flatpickr
@@ -1207,7 +1270,8 @@
                 let nightDates = new Set();
 
                 // Para el grafico de linea
-                let dailyCounts = {};
+                // La suma y graficado ahora se manejan en renderLineChart(), solo necesitamos setear availableDates.
+                availableDates = Array.from(uniqueDates);
 
                 allSheetData.forEach(row => {
                     let tKey = row.turno;
@@ -1218,13 +1282,6 @@
                         dayPallets++;
                         dayDates.add(row.fecha);
                     }
-
-                    // Cuenta bruta general por día (para grafico 7D)
-                    if (dailyCounts[row.fecha]) {
-                        dailyCounts[row.fecha]++;
-                    } else {
-                        dailyCounts[row.fecha] = 1;
-                    }
                 });
 
                 let avgDay = dayDates.size > 0 ? (dayPallets / dayDates.size).toFixed(1) : 0;
@@ -1234,27 +1291,7 @@
                 document.getElementById('stat-promedio-night').innerText = `${avgNight} plts/noche`;
 
                 // --- Generar Gráfico de 7 Días INDEPENDIENTE ---
-                if (myLineChart) {
-                    // Ordenar fechas más viejas a más nuevas
-                    // Nota: availableDates contiene strings 'M/D/YYYY'
-                    let chronologicDates = Array.from(uniqueDates).sort((a, b) => new Date(a) - new Date(b));
-
-                    // Tomar las últimas 7
-                    let last7 = chronologicDates.slice(-7);
-
-                    // Mapear la cuenta de pallets para cada uno de esos 7 días
-                    let last7Data = last7.map(d => dailyCounts[d] || 0);
-
-                    // Embellecer formato de fecha para la etiqueta (ej: 'Feb 13')
-                    let prettyLabels = last7.map(d => {
-                        let dt = new Date(d);
-                        return dt.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
-                    });
-
-                    myLineChart.data.labels = prettyLabels;
-                    myLineChart.data.datasets[0].data = last7Data;
-                    myLineChart.update();
-                }
+                window.renderLineChart();
 
                 // Renderizado interactivo inicial sin filtros
                 renderDashboard([]);
