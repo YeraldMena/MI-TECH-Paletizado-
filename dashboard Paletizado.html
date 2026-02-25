@@ -944,12 +944,21 @@
         };
 
         window.renderErrorsChart = function (selectedDatesAllowed) {
-            if (!selectedDatesAllowed) selectedDatesAllowed = [];
+            if (!selectedDatesAllowed || (selectedDatesAllowed.length === 1 && selectedDatesAllowed[0] === "")) {
+                selectedDatesAllowed = [];
+            }
 
             let filteredErrorRows = allErrorsData;
 
-            if (!isHistoricalErrors && selectedDatesAllowed.length > 0 && selectedDatesAllowed[0] !== "") {
-                filteredErrorRows = filteredErrorRows.filter(row => {
+            // Si estamos en foco de calendario y no hay fechas seleccionadas, por defecto usamos HOY
+            if (!isHistoricalErrors && selectedDatesAllowed.length === 0) {
+                const todayObj = new Date();
+                const todayStr = `${todayObj.getMonth() + 1}/${todayObj.getDate()}/${todayObj.getFullYear()}`;
+                selectedDatesAllowed = [todayStr];
+            }
+
+            if (!isHistoricalErrors && selectedDatesAllowed.length > 0) {
+                filteredErrorRows = allErrorsData.filter(row => {
                     return selectedDatesAllowed.includes(row.fecha);
                 });
             }
