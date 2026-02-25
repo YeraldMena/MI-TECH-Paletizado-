@@ -646,8 +646,40 @@
                 <div class="panel-header">
                     <h2 class="panel-title">Envíos por Turno</h2>
                 </div>
-                <div class="chart-area">
+                <div class="chart-area" id="barChartContainer">
                     <canvas id="barChart"></canvas>
+                </div>
+                <!-- Detalle oculto para Drill-Down -->
+                <div class="chart-area" id="barChartDetailContainer"
+                    style="display: none; flex-direction: column; height: 300px; padding-top: 0; align-items: stretch; justify-content: flex-start;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <span id="barDetailSubtitle"
+                            style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;"></span>
+                        <button class="btn" onclick="hideBarDetails()"
+                            style="padding: 0.25rem 0.6rem; font-size: 0.75rem;"><i class="fa-solid fa-arrow-left"
+                                style="margin-right: 4px;"></i> Volver</button>
+                    </div>
+                    <div
+                        style="flex: 1; overflow-y: auto; overflow-x: auto; background: var(--bg-dark); border-radius: 0.5rem; border: 1px solid var(--border-color);">
+                        <table style="width: 100%; border-collapse: collapse; min-width: max-content;">
+                            <thead style="position: sticky; top: 0; background: var(--bg-dark); z-index: 1;">
+                                <tr>
+                                    <th
+                                        style="padding: 0.5rem; font-size: 0.75rem; border-bottom: 1px solid var(--border-color);">
+                                        Pallet ID</th>
+                                    <th
+                                        style="padding: 0.5rem; font-size: 0.75rem; border-bottom: 1px solid var(--border-color);">
+                                        Fecha</th>
+                                    <th
+                                        style="padding: 0.5rem; font-size: 0.75rem; border-bottom: 1px solid var(--border-color);">
+                                        Cant.</th>
+                                </tr>
+                            </thead>
+                            <tbody id="barDetailTableBody">
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
@@ -745,6 +777,64 @@
                 if (allSelected) btn.classList.add('active');
                 else btn.classList.remove('active');
             });
+        };
+
+        // Función para cambiar la vista a Detalle de Barras
+        window.showBarDetails = function (turnoSelected, destinoSelected) {
+            document.getElementById('barChartContainer').style.display = 'none';
+            document.getElementById('barChartDetailContainer').style.display = 'flex';
+            document.getElementById('barDetailSubtitle').innerText = `${destinoSelected} - Turno ${turnoSelected}`;
+
+            const tbody = document.getElementById('barDetailTableBody');
+            tbody.innerHTML = '';
+
+            let val = document.getElementById('dateFilter').value;
+            let currentSelectedStrs = val ? val.split(', ') : [];
+
+            let filteredList = allSheetData.filter(row => {
+                // Filtrar por fechas elegidas
+                if (currentSelectedStrs.length > 0 && currentSelectedStrs[0] !== "") {
+                    let formattedRowDate = row.fecha; // M/d/yyyy
+                    if (!currentSelectedStrs.includes(formattedRowDate)) return false;
+                }
+
+                let tKey = row.turno;
+                if (tKey.includes("Noche") || tKey.toLowerCase().includes("night")) tKey = 'Noche';
+                else if (tKey.includes("día") || tKey.toLowerCase().includes("day") || tKey.includes("Dia") || tKey.includes("dia")) tKey = 'Día';
+
+                if (tKey !== turnoSelected) return false;
+
+                let d = row.destinoOriginal;
+                if (/pedido/i.test(d)) d = "TRG";
+                else if (/\d/.test(d)) d = "Almacén";
+
+                let dNorm = d.charAt(0).toUpperCase() + d.slice(1).toLowerCase();
+                if (d.toLowerCase() === 'trg') dNorm = "TRG";
+                else if (d.toLowerCase().includes('hv')) dNorm = "HV (High Value)";
+
+                return dNorm === destinoSelected;
+            });
+
+            if (filteredList.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding: 1rem; color: var(--text-muted); font-size: 0.8rem;">No hay registros asociados a esta barra.</td></tr>`;
+            } else {
+                filteredList.forEach(row => {
+                    const tr = document.createElement('tr');
+                    tr.style.borderBottom = "1px solid var(--border-color)";
+                    tr.innerHTML = `
+                        <td style="padding: 0.5rem; font-size: 0.8rem; text-align: center;"><strong>${row.id}</strong></td>
+                        <td style="padding: 0.5rem; font-size: 0.8rem; text-align: center;">${row.fecha}</td>
+                        <td style="padding: 0.5rem; font-size: 0.8rem; color: var(--accent-success); font-weight: 600; text-align: center;">${row.cantidad}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+        };
+
+        // Función para retornar a la gráfica de barras original
+        window.hideBarDetails = function () {
+            document.getElementById('barChartDetailContainer').style.display = 'none';
+            document.getElementById('barChartContainer').style.display = 'flex';
         };
 
         // Función para inyectar un mes completo al Flatpickr
@@ -1374,6 +1464,15 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    onClick: function (evt, elements) {
+                        if (elements && elements.length > 0) {
+                            const datasetIndex = elements[0].datasetIndex;
+                            const index = elements[0].index;
+                            const turno = myBarChart.data.labels[index]; // 'Día' o 'Noche'
+                            const destino = myBarChart.data.datasets[datasetIndex].label; // ej: 'TRG'
+                            window.showBarDetails(turno, destino);
+                        }
+                    },
                     plugins: {
                         legend: {
                             position: 'bottom',
