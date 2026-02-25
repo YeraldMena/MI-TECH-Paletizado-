@@ -684,28 +684,34 @@
                 </div>
             </div>
 
-            <!-- NUEVO: Gráfico Línea Últimos 7 Días -->
-            <div class="panel" style="grid-column: span 2; display: flex; flex-direction: column;">
-                <div class="panel-header">
-                    <h2 class="panel-title">Producción Diaria (Últimos 7 Días de Actividad)</h2>
-                </div>
-                <div class="chart-area" style="height: 280px; flex: 1;">
-                    <canvas id="lineChart"></canvas>
-                </div>
-            </div>
+            <!-- CONTENEDOR 50/50 PARA PRODUCCIÓN Y ERRORES -->
+            <div
+                style="grid-column: span 3; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem;">
 
-            <!-- CONTENEDOR ERRORES MOVIDO A CONTENT GRID -->
-            <div class="panel" style="grid-column: span 1; display: flex; flex-direction: column;">
-                <div class="panel-header" style="align-items: center;">
-                    <h2 class="panel-title" style="font-size: 0.95rem;">Errores de Liberación</h2>
-                    <button id="toggleErrorsBtn" class="btn" onclick="toggleHistoricalErrors()"
-                        style="font-size: 0.70rem; padding: 0.25rem 0.5rem; background-color: var(--bg-dark); color: var(--text-main);">
-                        <i class="fa-solid fa-clock-rotate-left"></i> Histórico
-                    </button>
+                <!-- Gráfico Línea Últimos 7 Días (Mitad Izquierda) -->
+                <div class="panel" style="display: flex; flex-direction: column;">
+                    <div class="panel-header">
+                        <h2 class="panel-title">Producción Diaria (Últimos 7 Días de Actividad)</h2>
+                    </div>
+                    <div class="chart-area" style="height: 280px; flex: 1;">
+                        <canvas id="lineChart"></canvas>
+                    </div>
                 </div>
-                <div class="chart-area" style="height: 280px; flex: 1;">
-                    <canvas id="errorsChart"></canvas>
+
+                <!-- Gráfico de Errores (Mitad Derecha) -->
+                <div class="panel" style="display: flex; flex-direction: column;">
+                    <div class="panel-header" style="align-items: center;">
+                        <h2 class="panel-title" style="font-size: 0.95rem;">Errores de Liberación</h2>
+                        <button id="toggleErrorsBtn" class="btn" onclick="toggleHistoricalErrors()"
+                            style="font-size: 0.70rem; padding: 0.25rem 0.5rem; background-color: var(--bg-dark); color: var(--text-main);">
+                            <i class="fa-solid fa-clock-rotate-left"></i> Histórico
+                        </button>
+                    </div>
+                    <div class="chart-area" style="height: 280px; flex: 1;">
+                        <canvas id="errorsChart"></canvas>
+                    </div>
                 </div>
+
             </div>
 
             <!-- Recent Activity Panel -->
