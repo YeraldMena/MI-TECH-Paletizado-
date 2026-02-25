@@ -599,6 +599,23 @@
                     <span>Según tu calendario</span>
                 </div>
             </div>
+            <!-- NUEVO CONTENEDOR ERRORES STAT CARD -->
+            <div class="stat-card"
+                style="grid-column: span 2; display: flex; flex-direction: column; min-height: 270px;">
+                <div class="stat-header" style="margin-bottom: 0.5rem; align-items: center;">
+                    <span style="font-weight: 600;">Errores de Liberación</span>
+                    <button id="toggleErrorsBtn" class="btn" onclick="toggleHistoricalErrors()"
+                        style="font-size: 0.75rem; padding: 0.25rem 0.5rem; background-color: var(--bg-dark); color: var(--text-main);">
+                        <i class="fa-solid fa-clock-rotate-left"></i> Histórico Completo
+                    </button>
+                    <div class="stat-icon" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                </div>
+                <div style="flex: 1; position: relative; width: 100%;">
+                    <canvas id="errorsChart"></canvas>
+                </div>
+            </div>
         </div>
 
         <!-- Content Grid -->
@@ -872,6 +889,10 @@
         };
 
         // ---- NUEVO SISTEMA (JSONP CON INTERCEPTOR) ----
+        let allErrorsData = [];
+        let isHistoricalErrors = false;
+        let myErrorsChart = null;
+
         // Al usar JSONP evitamos el bloqueo CORS para archivos locales.
         // Google Visualization API siempre devuelve: google.visualization.Query.setResponse(...)
         // Por lo tanto, creamos un falso objeto 'google' para atrapar su respuesta.
@@ -885,15 +906,89 @@
             }
         };
 
+        window.processErrorsData = function (response) {
+            try {
+                if (!response || !response.table || !response.table.rows) return;
+
+                allErrorsData = [];
+                response.table.rows.forEach(r => {
+                    const c = r.c;
+                    if (!c || !c[9] || c[9].v === null) return;
+
+                    let dateVal = c[1] && c[1].f ? c[1].f.split(' ')[0] : (c[1] && c[1].v ? c[1].v : 'N/A');
+                    let desc = c[9].v.toString().trim();
+                    if (desc !== "" && desc !== "-") {
+                        allErrorsData.push({ fecha: dateVal, error: desc });
+                    }
+                });
+
+                let val = document.getElementById('dateFilter') ? document.getElementById('dateFilter').value : '';
+                window.renderErrorsChart(val ? val.split(', ') : []);
+
+            } catch (error) {
+                console.error('Error procesando datos de Errores', error);
+            }
+        };
+
+        window.renderErrorsChart = function (selectedDatesAllowed) {
+            if (!selectedDatesAllowed) selectedDatesAllowed = [];
+
+            let filteredErrorRows = allErrorsData;
+
+            if (!isHistoricalErrors && selectedDatesAllowed.length > 0 && selectedDatesAllowed[0] !== "") {
+                filteredErrorRows = allErrorsData.filter(row => {
+                    return selectedDatesAllowed.includes(row.fecha);
+                });
+            }
+
+            let errorCounts = {};
+            filteredErrorRows.forEach(row => {
+                let e = row.error;
+                errorCounts[e] = (errorCounts[e] || 0) + 1;
+            });
+
+            let sortedErrors = Object.keys(errorCounts).map(k => ({ label: k, count: errorCounts[k] })).sort((a, b) => b.count - a.count);
+
+            let labels = sortedErrors.map(item => item.label);
+            let data = sortedErrors.map(item => item.count);
+
+            if (myErrorsChart) {
+                myErrorsChart.data.labels = labels;
+                myErrorsChart.data.datasets[0].data = data;
+                myErrorsChart.update();
+            }
+
+            const btn = document.getElementById('toggleErrorsBtn');
+            if (btn) {
+                btn.innerHTML = isHistoricalErrors ? '<i class="fa-solid fa-calendar-day"></i> Foco en Calendario' : '<i class="fa-solid fa-clock-rotate-left"></i> Histórico Completo';
+                btn.style.backgroundColor = isHistoricalErrors ? 'var(--accent-primary)' : 'var(--bg-dark)';
+                btn.style.color = isHistoricalErrors ? '#ffffff' : 'var(--text-main)';
+            }
+        };
+
+        window.toggleHistoricalErrors = function () {
+            isHistoricalErrors = !isHistoricalErrors;
+            let val = document.getElementById('dateFilter') ? document.getElementById('dateFilter').value : '';
+            window.renderErrorsChart(val ? val.split(', ') : []);
+        };
+
         function fetchSheetData() {
             const oldScript = document.getElementById('jsonp-script');
             if (oldScript) oldScript.remove(); // Limpiar el anterior 
 
             const script = document.createElement('script');
             script.id = 'jsonp-script';
-            // Petición a la hoja indicando tqx=out:json y agregando la función callback a llamar: "processSheetData"
-            // También se incluye un número aleatorio para forzar evitar la caché.
             script.src = `https://docs.google.com/spreadsheets/d/1Su-CGdOPU-etXKoVXAKYx6qKhN92RFBiH-gLeN_XElk/gviz/tq?tqx=out:json&gid=530597405&_=${new Date().getTime()}`;
+            document.body.appendChild(script);
+        }
+
+        function fetchErrorsData() {
+            const oldScript = document.getElementById('jsonp-errors-script');
+            if (oldScript) oldScript.remove();
+
+            const script = document.createElement('script');
+            script.id = 'jsonp-errors-script';
+            script.src = `https://docs.google.com/spreadsheets/d/1FjVHlUNzu0gqhBunDNXKD5GUpcKGviLrFdJJAZG5qhg/gviz/tq?tqx=responseHandler:window.processErrorsData;out:json&sheet=Liberación%20de%20Pallet&_=${new Date().getTime()}`;
             document.body.appendChild(script);
         }
 
@@ -1077,6 +1172,10 @@
 
         // Renderiza Gráficos (Anillo y Barras) y Tablas según la Selección de Fechas
         function renderDashboard(selectedDatesAllowed) {
+            if (typeof window.renderErrorsChart === 'function') {
+                window.renderErrorsChart(selectedDatesAllowed);
+            }
+
             let validRowsCount = 0;
             let enTransitoCount = 0;
 
@@ -1542,14 +1641,57 @@
                 }
             });
 
+            // Inicializar Gráfico de Errores
+            const errCtx = document.getElementById('errorsChart').getContext('2d');
+            myErrorsChart = new Chart(errCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Cargando...'],
+                    datasets: [{
+                        label: 'Errores',
+                        data: [],
+                        backgroundColor: '#f59e0b',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y', // Facilita la lectura de textos largos
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    return ` ${context.raw} apariciones`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: { color: '#94a3b8', stepSize: 1 }
+                        },
+                        y: {
+                            grid: { display: false },
+                            ticks: { color: '#94a3b8' }
+                        }
+                    }
+                }
+            });
+
             // Cargar datos inicialmente
             fetchSheetData();
+            fetchErrorsData();
 
             // Mantenemos la actualización silenciosa cada 30 segundos
             setInterval(() => {
                 // Solo si no hay filtro activo (para no borrar su selección actual al hacer fetch)
                 if (!flatpickrInstance || flatpickrInstance.selectedDates.length === 0) {
                     fetchSheetData();
+                    fetchErrorsData();
                 }
             }, 30000);
         });
