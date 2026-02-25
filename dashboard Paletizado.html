@@ -821,9 +821,16 @@
                 filteredList.forEach(row => {
                     const tr = document.createElement('tr');
                     tr.style.borderBottom = "1px solid var(--border-color)";
-                    let htmlChunks = window.displayIndices.map((idx) => {
-                        let val = row.rowValues[idx] !== undefined ? row.rowValues[idx] : '';
-                        return `<td style="padding: 0.5rem; font-size: 0.8rem; text-align: center;">${val}</td>`;
+                    let htmlChunks = window.displayIndices.map((idx, arrIndex) => {
+                        let val = row.rowValues[idx] !== undefined ? row.rowValues[idx].toString() : '';
+
+                        // Si es la primera columna mostrada (Pallet ID), la recortamos a 6 caracteres
+                        if (arrIndex === 0 && val.length > 6) {
+                            val = val.substring(0, 6);
+                        }
+
+                        let displayVal = arrIndex === 0 ? `<strong>${val}</strong>` : val;
+                        return `<td style="padding: 0.5rem; font-size: 0.8rem; text-align: center;">${displayVal}</td>`;
                     });
                     tr.innerHTML = htmlChunks.join('');
                     tbody.appendChild(tr);
@@ -1395,10 +1402,17 @@
             } else {
                 recentRows.forEach(row => {
                     const tr = document.createElement('tr');
-                    let htmlChunks = window.displayIndices.map((idx) => {
-                        let val = row.rowValues[idx] !== undefined ? row.rowValues[idx] : '';
+                    let htmlChunks = window.displayIndices.map((idx, arrIndex) => {
+                        let val = row.rowValues[idx] !== undefined ? row.rowValues[idx].toString() : '';
+
+                        // Recorte a 6 dígitos en caso de ser el ID
+                        if (arrIndex === 0 && val.length > 6) {
+                            val = val.substring(0, 6);
+                        }
+
+                        let displayVal = arrIndex === 0 ? `<strong>${val}</strong>` : val;
                         // Centrado global de celdas según instrucción
-                        return `<td style="text-align: center;">${val}</td>`;
+                        return `<td style="text-align: center;">${displayVal}</td>`;
                     });
                     tr.innerHTML = htmlChunks.join('');
                     tableBody.appendChild(tr);
