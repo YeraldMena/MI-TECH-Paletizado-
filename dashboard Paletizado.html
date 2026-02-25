@@ -724,31 +724,58 @@
 
                     </div>
 
-                    <!-- Recent Activity Panel -->
-                    <div class="panel" style="grid-column: span 2;">
-                        <div class="panel-header">
-                            <h2 class="panel-title">Últimos Registros</h2>
-                        </div>
-                        <div style="overflow-x: auto;">
-                            <table>
+                    <!-- NUEVA SECCIÓN DE PALLETS RECHAZADOS (ACORDEÓN) -->
+                    <div style="margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                        <button id="toggleRechazadosBtn" onclick="toggleRechazadosTable()"
+                            style="width: 100%; background: transparent; border: 1px dashed var(--border-color); color: var(--text-muted); padding: 0.5rem; border-radius: 0.5rem; font-size: 0.85rem; cursor: pointer; transition: all 0.2s;">
+                            <i class="fa-solid fa-chevron-down"></i> Ver pallets rechazados
+                        </button>
+                        <div id="rechazadosContainer"
+                            style="display: none; margin-top: 1rem; max-height: 180px; overflow-y: auto;">
+                            <table class="data-table" style="margin: 0; width: 100%;">
                                 <thead>
                                     <tr>
-                                        <th>ID Palet</th>
-                                        <th>Destino</th>
-                                        <th>Estado</th>
+                                        <th
+                                            style="padding: 0.5rem; text-align: center; font-size: 0.8rem; border-bottom: 1px solid var(--border-color);">
+                                            Defecto</th>
+                                        <th
+                                            style="padding: 0.5rem; text-align: center; font-size: 0.8rem; border-bottom: 1px solid var(--border-color);">
+                                            Pallet ID</th>
                                     </tr>
                                 </thead>
-                                <tbody id="table-body">
-                                    <tr>
-                                        <td colspan="3"
-                                            style="text-align: center; color: var(--text-muted); padding: 2rem;">
-                                            Cargando registros del SpreadSheet...</td>
-                                    </tr>
+                                <tbody id="rechazadosBody">
+                                    <!-- Datos dinámicos -->
                                 </tbody>
                             </table>
                         </div>
                     </div>
+                </div> <!-- Se cierra adecuadamente .panel de Errores -->
+
+                <!-- Recent Activity Panel, por fuera de Errores -->
+                <div class="panel" style="grid-column: 1 / -1;">
+                    <div class="panel-header">
+                        <h2 class="panel-title">Últimos Registros</h2>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID Palet</th>
+                                    <th>Destino</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-body">
+                                <tr>
+                                    <td colspan="3"
+                                        style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                                        Cargando registros del SpreadSheet...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
+            </div>
     </main>
 
     <script>
@@ -1119,12 +1146,20 @@
 
             // Para no repetir IDs con el mismo defecto
             const printed = new Set();
+            const uniqueRows = [];
 
             filteredRows.forEach(row => {
                 const uniqueKey = `${row.defecto}-${row.palletId}`;
                 if (printed.has(uniqueKey)) return;
                 printed.add(uniqueKey);
+                uniqueRows.push(row);
+            });
 
+            // Evitar desbordes forzando máx 5 elementos visuales para proteger el Layout
+            const maxToDisplay = 5;
+            const toDisplay = uniqueRows.slice(0, maxToDisplay);
+
+            toDisplay.forEach(row => {
                 let displayId = row.palletId;
                 if (displayId.length > 6) displayId = displayId.substring(0, 6);
 
@@ -1135,6 +1170,14 @@
                 `;
                 tbody.appendChild(tr);
             });
+
+            if (uniqueRows.length > maxToDisplay) {
+                const trLabel = document.createElement('tr');
+                trLabel.innerHTML = `
+                    <td colspan="2" style="padding: 0.5rem; text-align: center; font-size: 0.7rem; color: var(--text-muted); font-style: italic;">... y ${uniqueRows.length - maxToDisplay} defectuosos más</td>
+                `;
+                tbody.appendChild(trLabel);
+            }
         };
 
         function fetchSheetData() {
