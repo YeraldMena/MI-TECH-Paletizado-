@@ -816,16 +816,16 @@
             });
 
             if (filteredList.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding: 1rem; color: var(--text-muted); font-size: 0.8rem;">No hay registros asociados a esta barra.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="100%" style="text-align:center; padding: 1rem; color: var(--text-muted); font-size: 0.8rem;">No hay registros asociados a esta barra.</td></tr>`;
             } else {
                 filteredList.forEach(row => {
                     const tr = document.createElement('tr');
                     tr.style.borderBottom = "1px solid var(--border-color)";
-                    tr.innerHTML = `
-                        <td style="padding: 0.5rem; font-size: 0.8rem; text-align: center;"><strong>${row.id}</strong></td>
-                        <td style="padding: 0.5rem; font-size: 0.8rem; text-align: center;">${row.fecha}</td>
-                        <td style="padding: 0.5rem; font-size: 0.8rem; color: var(--accent-success); font-weight: 600; text-align: center;">${row.cantidad}</td>
-                    `;
+                    let htmlChunks = window.displayIndices.map((idx) => {
+                        let val = row.rowValues[idx] !== undefined ? row.rowValues[idx] : '';
+                        return `<td style="padding: 0.5rem; font-size: 0.8rem; text-align: center;">${val}</td>`;
+                    });
+                    tr.innerHTML = htmlChunks.join('');
                     tbody.appendChild(tr);
                 });
             }
@@ -913,8 +913,22 @@
                     if (txt.includes('dónde') || txt.includes('destino')) return 'Destino';
                     return lbl;
                 });
-                const theadTr = document.querySelector('table thead tr');
-                theadTr.innerHTML = colHeaders.map(lbl => `<th>${lbl}</th>`).join('');
+                // Calcular los índices a mostrar (hasta la columna "CONDICION")
+                window.displayIndices = [];
+                let foundCondicion = false;
+                for (let i = 0; i < colHeaders.length; i++) {
+                    if (foundCondicion) break; // Ya vimos condicion, ignoramos las demás
+                    window.displayIndices.push(i);
+                    if (colHeaders[i].toUpperCase().includes('CONDICI')) {
+                        foundCondicion = true;
+                    }
+                }
+
+                // Generamos los Headers finales para TODAS las tablas
+                let HTMLHeaders = window.displayIndices.map(i => `<th style="text-align: center;">${colHeaders[i]}</th>`).join('');
+                document.querySelectorAll('table thead tr').forEach(tr => {
+                    tr.innerHTML = HTMLHeaders;
+                });
 
                 // Mapear y procesar todos los datos iniciales
                 response.table.rows.forEach(r => {
@@ -1381,32 +1395,10 @@
             } else {
                 recentRows.forEach(row => {
                     const tr = document.createElement('tr');
-                    let htmlChunks = row.rowValues.map((val, idx) => {
-                        // idx es relativo a las nuevas 6 columnas.
-                        // Destino era la 4, si le quitamos la primera (0), ahora Destino es idx 3
-                        // Pallet ID era la 1, al quitar la 0, ahora Pallet ID es idx 0
-                        if (idx === 3) {
-                            let destino = val;
-                            if (/pedido/i.test(destino)) destino = "TRG";
-                            else if (/\d/.test(destino)) destino = "Almacén";
-
-                            if (destino.toLowerCase() === 'trg') destino = "TRG";
-                            else if (destino.toLowerCase().includes('hv')) destino = "HV (High Value)";
-
-                            let statusClass = 'status-pending';
-                            if (destino.toLowerCase() === 'trg' || destino.toLowerCase().includes('hv')) {
-                                statusClass = 'status-active';
-                            }
-                            return `<td><span class="status-badge ${statusClass}">${destino}</span></td>`;
-                        } else if (idx === 0) {
-                            let cleanID = val.toString().split('-')[0].trim();
-                            return `<td><strong>${cleanID}</strong></td>`;
-                        } else if (idx === 5) {
-                            let turnoStr = val ? val.toString() : '';
-                            if (turnoStr.includes("Noche") || turnoStr.toLowerCase().includes("night")) return `<td>Noche</td>`;
-                            if (turnoStr.toLowerCase().includes("día") || turnoStr.toLowerCase().includes("day") || turnoStr.toLowerCase().includes("dia")) return `<td>Día</td>`;
-                        }
-                        return `<td>${val}</td>`;
+                    let htmlChunks = window.displayIndices.map((idx) => {
+                        let val = row.rowValues[idx] !== undefined ? row.rowValues[idx] : '';
+                        // Centrado global de celdas según instrucción
+                        return `<td style="text-align: center;">${val}</td>`;
                     });
                     tr.innerHTML = htmlChunks.join('');
                     tableBody.appendChild(tr);
