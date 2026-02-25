@@ -702,10 +702,16 @@
                 <div class="panel" style="display: flex; flex-direction: column;">
                     <div class="panel-header" style="align-items: center;">
                         <h2 class="panel-title" style="font-size: 0.95rem;">Errores de Liberación</h2>
-                        <button id="toggleErrorsBtn" class="btn" onclick="toggleHistoricalErrors()"
-                            style="font-size: 0.70rem; padding: 0.25rem 0.5rem; background-color: var(--bg-dark); color: var(--text-main);">
-                            <i class="fa-solid fa-clock-rotate-left"></i> Histórico
-                        </button>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button id="toggleHVBtn" class="btn" onclick="toggleHighValueErrors()"
+                                style="font-size: 0.70rem; padding: 0.25rem 0.5rem; background-color: var(--bg-dark); color: var(--text-main);">
+                                <i class="fa-solid fa-box"></i> Otros Pallets
+                            </button>
+                            <button id="toggleErrorsBtn" class="btn" onclick="toggleHistoricalErrors()"
+                                style="font-size: 0.70rem; padding: 0.25rem 0.5rem; background-color: var(--bg-dark); color: var(--text-main);">
+                                <i class="fa-solid fa-clock-rotate-left"></i> Histórico
+                            </button>
+                        </div>
                     </div>
                     <div class="chart-area" style="height: 280px; flex: 1;">
                         <canvas id="errorsChart"></canvas>
@@ -895,6 +901,7 @@
         // ---- NUEVO SISTEMA (JSONP CON INTERCEPTOR) ----
         let allErrorsData = [];
         let isHistoricalErrors = false;
+        let isHighValueErrorsOnly = false;
         let myErrorsChart = null;
 
         // Al usar JSONP evitamos el bloqueo CORS para archivos locales.
@@ -921,8 +928,10 @@
 
                     let dateVal = c[1] && c[1].f ? c[1].f.split(' ')[0] : (c[1] && c[1].v ? c[1].v : 'N/A');
                     let desc = c[9].v.toString().trim();
+                    let tipoVal = c[11] && c[11].v ? c[11].v.toString().trim() : '';
+
                     if (desc !== "" && desc !== "-") {
-                        allErrorsData.push({ fecha: dateVal, error: desc });
+                        allErrorsData.push({ fecha: dateVal, error: desc, tipo: tipoVal });
                     }
                 });
 
@@ -940,8 +949,21 @@
             let filteredErrorRows = allErrorsData;
 
             if (!isHistoricalErrors && selectedDatesAllowed.length > 0 && selectedDatesAllowed[0] !== "") {
-                filteredErrorRows = allErrorsData.filter(row => {
+                filteredErrorRows = filteredErrorRows.filter(row => {
                     return selectedDatesAllowed.includes(row.fecha);
+                });
+            }
+
+            // Aplicar el Filtro de Tipo de Pallet (Columna L)
+            if (isHighValueErrorsOnly) {
+                filteredErrorRows = filteredErrorRows.filter(row => {
+                    let text = row.tipo.toLowerCase();
+                    return text.includes('hv') || text.includes('high value');
+                });
+            } else {
+                filteredErrorRows = filteredErrorRows.filter(row => {
+                    let text = row.tipo.toLowerCase();
+                    return !text.includes('hv') && !text.includes('high value');
                 });
             }
 
@@ -959,15 +981,30 @@
             if (myErrorsChart) {
                 myErrorsChart.data.labels = labels;
                 myErrorsChart.data.datasets[0].data = data;
+                // Modificar el color según si es HV o no
+                myErrorsChart.data.datasets[0].backgroundColor = isHighValueErrorsOnly ? '#8b5cf6' : '#f59e0b';
                 myErrorsChart.update();
             }
 
             const btn = document.getElementById('toggleErrorsBtn');
             if (btn) {
-                btn.innerHTML = isHistoricalErrors ? '<i class="fa-solid fa-calendar-day"></i> Foco en Calendario' : '<i class="fa-solid fa-clock-rotate-left"></i> Histórico Completo';
+                btn.innerHTML = isHistoricalErrors ? '<i class="fa-solid fa-calendar-day"></i> Foco en Calendario' : '<i class="fa-solid fa-clock-rotate-left"></i> Histórico';
                 btn.style.backgroundColor = isHistoricalErrors ? 'var(--accent-primary)' : 'var(--bg-dark)';
                 btn.style.color = isHistoricalErrors ? '#ffffff' : 'var(--text-main)';
             }
+
+            const btnHV = document.getElementById('toggleHVBtn');
+            if (btnHV) {
+                btnHV.innerHTML = isHighValueErrorsOnly ? '<i class="fa-solid fa-gem"></i> High Value' : '<i class="fa-solid fa-box"></i> Otros Pallets';
+                btnHV.style.backgroundColor = isHighValueErrorsOnly ? '#8b5cf6' : 'var(--bg-dark)';
+                btnHV.style.color = isHighValueErrorsOnly ? '#ffffff' : 'var(--text-main)';
+            }
+        };
+
+        window.toggleHighValueErrors = function () {
+            isHighValueErrorsOnly = !isHighValueErrorsOnly;
+            let val = document.getElementById('dateFilter') ? document.getElementById('dateFilter').value : '';
+            window.renderErrorsChart(val ? val.split(', ') : []);
         };
 
         window.toggleHistoricalErrors = function () {
