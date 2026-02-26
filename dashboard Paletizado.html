@@ -725,13 +725,14 @@
                     </div>
 
                     <!-- NUEVA SECCIÓN DE PALLETS RECHAZADOS (ACORDEÓN) -->
-                    <div style="margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                    <div
+                        style="margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem; position: relative;">
                         <button id="toggleRechazadosBtn" onclick="toggleRechazadosTable()"
                             style="width: 100%; background: transparent; border: 1px dashed var(--border-color); color: var(--text-muted); padding: 0.5rem; border-radius: 0.5rem; font-size: 0.85rem; cursor: pointer; transition: all 0.2s;">
                             <i class="fa-solid fa-chevron-down"></i> Ver pallets rechazados
                         </button>
                         <div id="rechazadosContainer"
-                            style="display: none; margin-top: 1rem; max-height: 180px; overflow-y: auto;">
+                            style="display: none; position: absolute; z-index: 50; bottom: 100%; left: 0; right: 0; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 0.5rem; margin-bottom: 0.5rem; max-height: 220px; overflow-y: auto; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.8);">
                             <table class="data-table" style="margin: 0; width: 100%;">
                                 <thead>
                                     <tr>
