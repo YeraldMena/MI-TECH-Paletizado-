@@ -1270,9 +1270,10 @@
                         rowValues: rawValues,
                         id: (c[1] && c[1].v != null) ? c[1].v.toString().split('-')[0].trim() : 'Sin ID',
                         cantidad: rawValues[1] ? (parseFloat(rawValues[1].toString().replace(/,/g, '')) || 0) : 0,
-                        destinoOriginal: c[4].v.toString().trim(),
+                        destinoOriginal: (c[4] && c[4].v != null) ? c[4].v.toString().trim() : '',
                         fecha: rawDate,
-                        turno: (c[6] && c[6].v != null) ? c[6].v.toString() : 'N/A'
+                        turno: (c[6] && c[6].v != null) ? c[6].v.toString() : 'N/A',
+                        observaciones: (c[8] && c[8].v != null) ? c[8].v.toString().trim() : ''
                     });
                 });
 
@@ -1448,16 +1449,23 @@
                     }
                 }
 
-                let d = row.destinoOriginal;
-                const isPedidoStr = /pedido/i.test(d);
-                const has8Digits = /\b\d{8}\b/.test(d); // Número único de 8 digitos como: "18949846"
+                let d = row.destinoOriginal || '';
+                let o = row.observaciones || '';
+
+                // Evaluamos tanto en Destino como en Observaciones
+                const isPedidoStr = /pedido/i.test(d) || /pedido/i.test(o);
+                const has8DigitsInfo = /\b\d{8}\b/.exec(d) || /\b\d{8}\b/.exec(o);
+                const has8Digits = has8DigitsInfo !== null;
 
                 if (isPedidoStr || has8Digits) {
-                    let nombrePedido = d;
-                    // Extraer los 8 digitos para dejar mas presentable el nombre
-                    if (has8Digits && !isPedidoStr) {
-                        const match = d.match(/\b\d{8}\b/);
-                        nombrePedido = match ? match[0] : d;
+                    let nombrePedido = "Pedido Especial"; // default fallback
+
+                    // Si encontramos los 8 digitos directos, los usamos como nombre
+                    if (has8DigitsInfo && has8DigitsInfo[0]) {
+                        nombrePedido = has8DigitsInfo[0];
+                    } else if (isPedidoStr) {
+                        // Si no hay 8 dígitos, rescatamos el rubro donde encontramos la palabra pedido
+                        nombrePedido = /pedido/i.test(d) ? d : o;
                     }
 
                     const rowDateObj = new Date(row.fecha);
