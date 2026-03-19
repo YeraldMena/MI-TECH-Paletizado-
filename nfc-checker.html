@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checador NFC</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f2f5;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+        h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 1.1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-bottom: 20px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #status {
+            font-size: 1.3rem;
+            font-weight: bold;
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .waiting {
+            background-color: #e2e3e5;
+            color: #383d41;
+            border: 1px solid #d6d8db;
+        }
+        #details {
+            display: none;
+            margin-top: 15px;
+            font-family: monospace;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #eee;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Checador de Acceso NFC</h2>
+        <button id="scanButton">Iniciar Escáner NFC</button>
+        <div id="status" class="waiting">Presiona el botón para iniciar</div>
+        <div id="details"></div>
+    </div>
+
+    <script>
+        const scanButton = document.getElementById('scanButton');
+        const statusDiv = document.getElementById('status');
+        const detailsDiv = document.getElementById('details');
+        
+        // Clave de acceso esperada (la convertimos a minúsculas por si acaso)
+        const EXPECTED_SERIAL = "DA:35:39:02".toLowerCase();
+
+        scanButton.addEventListener('click', async () => {
+            // Verificamos si el navegador soporta Web NFC
+            if ('NDEFReader' in window) {
+                try {
+                    const ndef = new NDEFReader();
+                    await ndef.scan();
+                    
+                    statusDiv.textContent = "Acerca la tarjeta/dispositivo NFC...";
+                    statusDiv.className = "waiting";
+                    detailsDiv.style.display = 'none';
+
+                    // Evento cuando se lee una etiqueta NFC
+                    ndef.addEventListener("reading", ({ message, serialNumber }) => {
+                        console.log(`Lectura NFC - Número de Serie: ${serialNumber}`);
+                        
+                        detailsDiv.style.display = 'block';
+                        detailsDiv.innerHTML = `<strong>N. Serie Detectado:</strong><br>${serialNumber || 'Desconocido'}`;
+
+                        if (serialNumber) {
+                            // Normalizamos ambas cadenas quitando posibles espacios y comparando en minúsculas
+                            const currentSerial = serialNumber.toLowerCase();
+                            
+                            // Web NFC devuelve números de serie separados por dos puntos (ej: "da:35:39:02")
+                            // pero a veces puede que no, entonces validaremos quitando los dos puntos también por si acaso.
+                            const currentNoColons = currentSerial.replace(/:/g, '');
+                            const expectedNoColons = EXPECTED_SERIAL.replace(/:/g, '');
+
+                            if (currentSerial === EXPECTED_SERIAL || currentNoColons === expectedNoColons) {
+                                statusDiv.textContent = "¡CÓDIGO CORRECTO! Sí coincide.";
+                                statusDiv.className = "success";
+                            } else {
+                                statusDiv.textContent = "ACCESO DENEGADO. No coincide.";
+                                statusDiv.className = "error";
+                            }
+                        } else {
+                            statusDiv.textContent = "No se pudo leer el número de serie.";
+                            statusDiv.className = "error";
+                        }
+                    });
+
+                    // Evento si hay un error al leer
+                    ndef.addEventListener("readingerror", () => {
+                        statusDiv.textContent = "Error al leer. Aleja y acerca la tarjeta de nuevo.";
+                        statusDiv.className = "error";
+                    });
+
+                } catch (error) {
+                    statusDiv.textContent = "Error: " + error.message;
+                    statusDiv.className = "error";
+                    console.error("Error iniciando lector NFC:", error);
+                }
+            } else {
+                statusDiv.textContent = "El API 'Web NFC' no está soportado en este navegador u OS.";
+                statusDiv.className = "error";
+                detailsDiv.style.display = 'block';
+                detailsDiv.innerHTML = "<strong>Nota:</strong> Web NFC actualmente solo funciona en <b>Chrome para Android</b>.<br>Asegúrate de no estar en Windows o iOS.";
+            }
+        });
+    </script>
+</body>
+</html>
